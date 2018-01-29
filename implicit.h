@@ -39,6 +39,10 @@ heap *heap_create(intptr_t size, search_alg_t search_alg);
  */
 void heap_print(heap *h);
 
+static int is_first_block(heap *h, void *block_start);
+
+static int is_within_heap_range(heap *h, void *addr);
+
 /*
  * Determine the average size of a free block.
  */
@@ -53,5 +57,4 @@ void heap_free(heap *h, void *payload);
  * Our implementation of malloc.
  */
 void *heap_malloc(heap *h, block_size_t size);
-
 #endif

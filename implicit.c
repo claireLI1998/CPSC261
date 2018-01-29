@@ -72,7 +72,12 @@ static void *get_next_block(void *block_start)
 static void *get_previous_block(void *block_start)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  void *starting_point = block_start;
+  starting_point = starting_point - HEADER_SIZE;
+  block_size_t previous_block_size = *((block_size_t *) starting_point);
+  starting_point = starting_point - previous_block_size + HEADER_SIZE;
+
+  return starting_point;
 }
 
 /*
@@ -92,6 +97,7 @@ static int is_first_block(heap *h, void *block_start)
 static int is_within_heap_range(heap *h, void *addr)
 {
   return addr >= h->start && addr < h->start + h->size;
+
 }
 
 /*
@@ -101,8 +107,25 @@ static int is_within_heap_range(heap *h, void *addr)
 static void *coalesce(heap *h, void *first_block_start)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+
+  void *save = first_block_start;
+  block_size_t one = 0;
+  int count;
+  //int use1 = is_whithin_heap_range(h,next_block_start);
+  //int use2 = is_whithin_heap_range(h,first_block_start);
+  for(count = 2; is_within_heap_range(h,first_block_start); first_block_start = get_next_block(first_block_start)){
+    if(!block_is_in_use(first_block_start)){
+      one += get_block_size(first_block_start);
+      count --;
+  }
+    if(count == 0){
+      break;
+    }
+  }
+  set_block_header(save, one, 0);
+  return first_block_start;
 }
+
 
 /*
  * Determine the size of the block we need to allocate given the size
@@ -112,7 +135,12 @@ static void *coalesce(heap *h, void *first_block_start)
 static block_size_t get_size_to_allocate(block_size_t user_size)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return PAYLOAD_ALIGN + 2 * HEADER_SIZE;
+  //payload_align_t available_size = 8;
+  //while(user_size > available_size){
+  //  available_size *2 ;
+  //}
+
+  return user_size + 2 * HEADER_SIZE;
 }
 
 /*
@@ -123,7 +151,17 @@ static block_size_t get_size_to_allocate(block_size_t user_size)
 static void *prepare_block_for_use(void *block_start, block_size_t real_size)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+
+    block_size_t block_size1 = get_block_size(block_start);
+    void *next_block1 = get_next_block(block_start);
+    if(block_size1 > 2 * (real_size) || block_size1 > (real_size + MAX_UNUSED_BYTES)){
+        set_block_header(block_start, real_size, 1);
+        set_block_header(next_block1, block_size1-real_size, 0);
+    }
+    else{
+      set_block_header(block_start, block_size1, 0);
+    }
+   return block_start + HEADER_SIZE;
 }
 
 /*
@@ -142,8 +180,7 @@ heap *heap_create(intptr_t size, search_alg_t search_alg)
 
   /* Ensures the heap_start points to an address that has space for
      the header, while allowing the payload to be aligned to PAYLOAD_ALIGN */
-  int delta = PAYLOAD_ALIGN - HEADER_SIZE -
-    ((uintptr_t) heap_start) % PAYLOAD_ALIGN;
+  int delta = PAYLOAD_ALIGN - HEADER_SIZE - ((uintptr_t) heap_start) % PAYLOAD_ALIGN;
   if (delta < 0)
 
     delta += PAYLOAD_ALIGN;
@@ -170,8 +207,20 @@ heap *heap_create(intptr_t size, search_alg_t search_alg)
 void heap_print(heap *h)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  while(h -> next != NULL){
-    printf("Block at address %s\n", &(h -> start));
+  void *block;
+  for (block = h->start; is_within_heap_range(h, block); block = get_next_block(block)){
+    printf("Block at address %p\n", block);
+    block_size_t t1 = get_block_size(block);
+    int use = block_is_in_use(block);
+    printf(" Size: %d\n", t1);
+    if(use == 1){
+     printf(" In use: Yes\n");
+     printf("\n\n");
+    }
+    else{
+    printf(" In use: NO\n");
+    printf("\n\n");
+   }
   }
 }
 
@@ -181,7 +230,20 @@ void heap_print(heap *h)
 block_size_t heap_find_avg_free_block_size(heap *h)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return 0;
+  void *block;
+  int sum = 0;
+  block_size_t size = 0;
+  block_size_t avg_size;
+  for (block = h->start; is_within_heap_range(h, block); block = get_next_block(block)){
+    int use = block_is_in_use(block);
+    if(use == 0){
+      size += get_block_size(block);
+      ++sum;
+    }
+
+  }
+  avg_size = size / sum;
+  return avg_size;
 }
 
 /*
@@ -192,6 +254,31 @@ block_size_t heap_find_avg_free_block_size(heap *h)
 void heap_free(heap *h, void *payload)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
+  void *current_block = get_block_start(payload);
+  void *previous_block = get_previous_block(current_block);
+  void *next_block = get_previous_block(current_block);
+
+  block_size_t current_size = 0;
+  //int previous_size;
+  //int next_size;
+
+  int usage1 = block_is_in_use(next_block);
+  int usage2 = block_is_in_use(previous_block);
+
+  if(usage1 == 1){
+    current_block = coalesce(h, previous_block);
+    current_size += get_block_size(previous_block);
+  }
+  if(usage2 == 1){
+    current_block = coalesce(h, previous_block);
+    current_size += get_block_size(previous_block);
+  }
+  set_block_header(current_block, current_size, 0);
+
+  h -> start = current_block;
+
+  free(previous_block);
+  free(next_block);
 }
 
 /*
@@ -201,7 +288,22 @@ void heap_free(heap *h, void *payload)
 static void *malloc_first_fit(heap *h, block_size_t user_size)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+
+  void *current_addr_ff = h -> start;
+  int inuse = 0;
+  for(current_addr_ff = h -> start; is_within_heap_range(h, current_addr_ff);current_addr_ff = get_next_block(current_addr_ff)){
+     inuse = block_is_in_use(current_addr_ff);
+     if((inuse == 1) || (get_block_size(current_addr_ff) < (user_size + HEADER_SIZE * 2))){
+
+     }
+     else{
+       return prepare_block_for_use(current_addr_ff, user_size);
+       break;
+     }
+ }
+
+ return NULL;
+
 }
 
 /*
@@ -211,7 +313,25 @@ static void *malloc_first_fit(heap *h, block_size_t user_size)
 static void *malloc_best_fit(heap *h, block_size_t user_size)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  block_size_t wasted_space = 2147483647;
+  void *current_addr_bf = h -> start;
+  void *best_fit_addr = NULL;
+  for (current_addr_bf = h->start; is_within_heap_range(h, current_addr_bf); current_addr_bf = get_next_block(current_addr_bf)){
+    if( (!block_is_in_use(current_addr_bf)) && ((get_block_size(current_addr_bf)) >= (user_size + HEADER_SIZE * 2))){
+      block_size_t unused_space = get_block_size(current_addr_bf) - user_size - HEADER_SIZE *2;
+      if(unused_space < wasted_space){
+        best_fit_addr = current_addr_bf;
+        wasted_space = unused_space;
+      }
+    }
+  }
+  if(current_addr_bf == NULL){
+    return NULL;
+  }
+  else
+    return prepare_block_for_use(best_fit_addr, user_size);
+
+
 }
 
 /*
@@ -221,7 +341,20 @@ static void *malloc_best_fit(heap *h, block_size_t user_size)
 static void *malloc_next_fit(heap *h, block_size_t user_size)
 {
   /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  void *current_addr_nf = h -> next;
+
+  int inuse = block_is_in_use(current_addr_nf);
+  while( inuse == 1 || (get_block_size(current_addr_nf) < user_size + HEADER_SIZE *2)){
+    if(!is_within_heap_range(h, current_addr_nf)){
+      return NULL;
+    }
+    else{
+      current_addr_nf = get_next_block(current_addr_nf);
+    }
+  }
+    h -> next = current_addr_nf;
+
+   return prepare_block_for_use(current_addr_nf, user_size);
 }
 
 /*

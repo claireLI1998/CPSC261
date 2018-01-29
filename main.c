@@ -96,20 +96,27 @@ unsigned long test_heap(search_alg_t search_alg, int op_count)
   fragmentation = heap_find_avg_free_block_size(h);
   return fragmentation;
 }
-
 /*
  * Main function.
  */
+
+
 int main(int argc, char *argv[])
 {
   initialize_rng();
-  
+
   /*
    * Now run tests on all three types of search algorithm.
    */
-   heap *h = heap_create(HEAP_SIZE, algorithm);
-   heap_print(h);
-  //printf("First fit average block size: %lu\n", test_heap(HEAP_FIRSTFIT, 50000));
-  //printf("Next fit average block size: %lu\n", test_heap(HEAP_NEXTFIT, 50000));
-  //printf("Best fit average block size: %lu\n", test_heap(HEAP_BESTFIT, 50000));
+
+  //printf("\nAverage Block Size: %" PRIu32 "\n", heap_find_avg_free_block_size(h));
+
+
+
+  printf("Testing First fit average block\n");
+  printf("First fit average block size: %lu\n", test_heap(HEAP_FIRSTFIT, 50000));
+  printf("Testing First fit average block\n");
+  printf("Next fit average block size: %lu\n", test_heap(HEAP_NEXTFIT, 50000));
+  printf("Testing First fit average block\n");
+  printf("Best fit average block size: %lu\n", test_heap(HEAP_BESTFIT, 50000));
 }
